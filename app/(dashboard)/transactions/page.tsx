@@ -11,7 +11,7 @@ import {
   Wallet, 
   Tag,
   ChevronLeft,
-  ChevronRight,
+  ChevronRight
 } from "lucide-react";
 
 import { transactionService } from "@/services/transactionService";
@@ -29,6 +29,7 @@ export default function TransactionPage() {
     fetchTransactions, 
     removeTransaction, 
     isLoading: txLoading,
+    isRefetching
   } = useTransactionStore();
   
   const { 
@@ -45,12 +46,17 @@ export default function TransactionPage() {
   
   const { isOpen, open, close } = useDisclosure();
 
-  const loading = txLoading || masterLoading;
+  const isInitialLoading = (txLoading || masterLoading) && transactions.length === 0;
 
   useEffect(() => {
     fetchMasterData();
     fetchTransactions();
   }, [fetchMasterData, fetchTransactions]);
+
+  const handleRefresh = () => {
+    fetchTransactions();
+    fetchMasterData();
+  };
 
   useEffect(() => {
     setCurrentPage(1);
@@ -63,18 +69,15 @@ export default function TransactionPage() {
 
   const confirmDelete = async () => {
     if (!selectedId) return;
-    
     try {
       await transactionService.delete(selectedId);
       removeTransaction(selectedId);
       close();
-      
     } catch (error: any) {
       console.error("❌ Delete error:", error);
       alert("Gagal menghapus data: " + (error.message || "Unknown error"));
     }
   };
-
 
   const formatDate = (dateString: string) => {
     if (!dateString) return "-";
@@ -82,15 +85,8 @@ export default function TransactionPage() {
       const rawDate = dateString.split('T')[0]; 
       const [year, month, day] = rawDate.split('-');
       const date = new Date(Number(year), Number(month) - 1, Number(day), 12, 0, 0);
-
-      return new Intl.DateTimeFormat("id-ID", {
-        day: "numeric", 
-        month: "long", 
-        year: "numeric",
-      }).format(date);
-    } catch (e) { 
-      return dateString; 
-    }
+      return new Intl.DateTimeFormat("id-ID", { day: "numeric", month: "long", year: "numeric" }).format(date);
+    } catch (e) { return dateString; }
   };
 
   const getCategoryName = (id: number | string) => {
@@ -104,16 +100,10 @@ export default function TransactionPage() {
   };
 
   const filteredData = [...transactions]
-  .filter(tx =>
-    tx.description.toLowerCase().includes(search.toLowerCase())
-  )
-  .sort((a, b) => {
-    return new Date(b.date_transaction).getTime() - 
-           new Date(a.date_transaction).getTime();
-  });
+    .filter(tx => tx.description.toLowerCase().includes(search.toLowerCase()))
+    .sort((a, b) => new Date(b.date_transaction).getTime() - new Date(a.date_transaction).getTime());
 
-
-  const totalPages = Math.ceil(filteredData.length / ITEMS_PER_PAGE);
+  const totalPages = Math.ceil(filteredData.length / ITEMS_PER_PAGE) || 1;
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
   const paginatedData = filteredData.slice(startIndex, startIndex + ITEMS_PER_PAGE);
   
@@ -122,14 +112,8 @@ export default function TransactionPage() {
     const maxButtons = 5;
     let startPage = Math.max(1, currentPage - Math.floor(maxButtons / 2));
     const endPage = Math.min(totalPages, startPage + maxButtons - 1);
-    
-    if (endPage - startPage + 1 < maxButtons) {
-      startPage = Math.max(1, endPage - maxButtons + 1);
-    }
-
-    for (let i = startPage; i <= endPage; i++) {
-      pages.push(i);
-    }
+    if (endPage - startPage + 1 < maxButtons) startPage = Math.max(1, endPage - maxButtons + 1);
+    for (let i = startPage; i <= endPage; i++) pages.push(i);
     return pages;
   };
 
@@ -137,12 +121,13 @@ export default function TransactionPage() {
     <div className="space-y-6 animate-in fade-in duration-500">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Daftar Transaksi</h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Daftar Transaksi</h1>
+          </div>
           <p className="text-sm text-gray-500 mt-1">
             Kelola pemasukan dan pengeluaran Anda
           </p>
         </div>
-        
         <div className="flex gap-2">
           <Link href="/transactions/create">
             <Button className="bg-blue-600 hover:bg-blue-700 hover:cursor-pointer text-white shadow-lg shadow-blue-600/20">
@@ -175,7 +160,7 @@ export default function TransactionPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
-              {loading && transactions.length === 0 ? (
+              {isInitialLoading ? (
                 [...Array(5)].map((_, index) => (
                   <tr key={index} className="animate-pulse">
                     <td className="p-4 pl-6"><div className="h-4 w-32 bg-gray-200 rounded" /></td>
@@ -244,60 +229,27 @@ export default function TransactionPage() {
             </tbody>
           </table>
         </div>
-        {!loading && filteredData.length > 0 && (
+
+        {!isInitialLoading && filteredData.length > 0 && (
           <div className="border-t border-gray-200 bg-white px-4 py-3 sm:px-6">
-            <div className="flex flex-1 justify-between sm:hidden">
-              <button
-                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                disabled={currentPage === 1}
-                className="relative inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-              >
-                Sebelumnya
-              </button>
-              <button
-                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                disabled={currentPage === totalPages}
-                className="relative ml-3 inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-              >
-                Selanjutnya
-              </button>
-            </div>
-            <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+             <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
               <div>
                 <p className="text-sm text-gray-700">
                   Menampilkan <span className="font-bold text-gray-900">{startIndex + 1}</span> sampai <span className="font-bold text-gray-900">{Math.min(startIndex + ITEMS_PER_PAGE, filteredData.length)}</span> dari <span className="font-bold text-gray-900">{filteredData.length}</span> data
                 </p>
               </div>
               <div>
-                <nav className="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
-                  <button
-                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                    disabled={currentPage === 1}
-                    className="relative inline-flex items-center rounded-l-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <span className="sr-only">Previous</span>
-                    <ChevronLeft className="h-5 w-5" aria-hidden="true" />
+                <nav className="isolate inline-flex -space-x-px rounded-md shadow-sm">
+                  <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="relative inline-flex items-center rounded-l-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 disabled:opacity-50">
+                    <ChevronLeft className="h-5 w-5" />
                   </button>
                   {getPageNumbers().map((pageNum) => (
-                     <button
-                       key={pageNum}
-                       onClick={() => setCurrentPage(pageNum)}
-                       className={`relative inline-flex items-center px-4 py-2 text-sm font-semibold 
-                         ${currentPage === pageNum 
-                           ? 'z-10 bg-blue-600 text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600' 
-                           : 'text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0'
-                         }`}
-                     >
+                     <button key={pageNum} onClick={() => setCurrentPage(pageNum)} className={`relative inline-flex items-center px-4 py-2 text-sm font-semibold ${currentPage === pageNum ? 'bg-blue-600 text-white' : 'text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50'}`}>
                        {pageNum}
                      </button>
                   ))}
-                  <button
-                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                    disabled={currentPage === totalPages}
-                    className="relative inline-flex items-center rounded-r-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <span className="sr-only">Next</span>
-                    <ChevronRight className="h-5 w-5" aria-hidden="true" />
+                  <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="relative inline-flex items-center rounded-r-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 disabled:opacity-50">
+                    <ChevronRight className="h-5 w-5" />
                   </button>
                 </nav>
               </div>
@@ -305,6 +257,7 @@ export default function TransactionPage() {
           </div>
         )}
       </Card>
+      
       <Modal isOpen={isOpen} onClose={close} title="Hapus Transaksi">
         <div className="pt-2">
           <p className="text-gray-600 mb-6">Yakin ingin menghapus? <br /><span className="text-xs text-red-500">*Data yang dihapus tidak bisa dikembalikan.</span></p>

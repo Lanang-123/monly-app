@@ -16,6 +16,7 @@ import { formatRupiah } from "@/lib/utils";
 export default function DashboardPage() {
   const { transactions, fetchTransactions, isLoading: txLoading } = useTransactionStore();
   const { categories, fetchMasterData, isLoading: masterLoading } = useMasterDataStore();
+  
   const loading = txLoading || masterLoading;
 
   useEffect(() => {
@@ -27,20 +28,18 @@ export default function DashboardPage() {
     let income = 0;
     let expense = 0;
 
-    if (transactions.length === 0 || categories.length === 0) {
-      return { income: 0, expense: 0, total: 0 };
+    if (transactions.length > 0 && categories.length > 0) {
+      transactions.forEach((tx) => {
+        const cat = categories.find((c) => String(c.id) === String(tx.category_id));
+        const amount = Number(tx.total);
+
+        if (cat?.category_type === 'in') {
+          income += amount;
+        } else if (cat?.category_type === 'out') {
+          expense += amount;
+        }
+      });
     }
-
-    transactions.forEach((tx) => {
-      const cat = categories.find((c) => String(c.id) === String(tx.category_id));
-      const amount = Number(tx.total);
-
-      if (cat?.category_type === 'in') {
-        income += amount;
-      } else if (cat?.category_type === 'out') {
-        expense += amount;
-      }
-    });
 
     return {
       income,
@@ -49,13 +48,16 @@ export default function DashboardPage() {
     };
   }, [transactions, categories]);
 
-  if (loading && transactions.length === 0) {
+  if (loading) {
     return (
       <div className="space-y-8 animate-in fade-in duration-500">
         <div className="space-y-2">
+           {/* Skeleton Header */}
            <div className="h-8 w-64 bg-gray-200 rounded-lg animate-pulse" />
            <div className="h-4 w-96 bg-gray-100 rounded-lg animate-pulse" />
         </div>
+        
+        {/* Skeleton Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {[1, 2].map((i) => (
             <div key={i} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 h-44 flex flex-col justify-between animate-pulse">
@@ -69,7 +71,7 @@ export default function DashboardPage() {
           ))}
         </div>
 
-        {/* Footer Widgets Skeleton */}
+        {/* Skeleton Bottom Widgets */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
            <div className="h-56 bg-gray-200 rounded-2xl animate-pulse" />
            <div className="h-56 bg-gray-200 rounded-2xl animate-pulse" />
@@ -78,14 +80,15 @@ export default function DashboardPage() {
     );
   }
 
-
   return (
     <div className="space-y-8 animate-in fade-in duration-700">
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Dashboard Keuangan</h1>
         <p className="text-gray-500 mt-1">Ringkasan aktivitas keuangan Anda.</p>
       </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Card Pemasukan */}
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 relative overflow-hidden group hover:shadow-md transition-all duration-300">
           <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
             <TrendingUp size={80} className="text-emerald-600" />
@@ -104,6 +107,8 @@ export default function DashboardPage() {
             <span>Cash In</span>
           </div>
         </div>
+
+        {/* Card Pengeluaran */}
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 relative overflow-hidden group hover:shadow-md transition-all duration-300">
           <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
             <TrendingDown size={80} className="text-red-600" />
@@ -123,7 +128,9 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Widget Total Transaksi */}
         <div className="bg-linear-to-br from-slate-800 to-blue-900 p-8 rounded-2xl text-white shadow-lg border border-blue-800/30">
           <h3 className="text-lg font-semibold mb-2 text-blue-100">Total Transaksi Tercatat</h3>
           <div className="text-5xl font-bold mb-4 tracking-tight text-white">
@@ -133,6 +140,8 @@ export default function DashboardPage() {
             Data ini dihitung berdasarkan seluruh riwayat transaksi yang tersimpan di server Monly.
           </p>
         </div>
+
+        {/* Widget Quick Action */}
         <div className="bg-blue-600 p-8 rounded-2xl text-white shadow-lg flex flex-col justify-between relative overflow-hidden group">
           <div className="absolute -right-10 -bottom-10 w-40 h-40 bg-white opacity-10 rounded-full blur-2xl group-hover:opacity-20 transition-opacity duration-500"></div>
           <div>

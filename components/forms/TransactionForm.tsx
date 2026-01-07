@@ -34,7 +34,7 @@ interface Props {
 export default function TransactionForm({ initialData, isEdit }: Props) {
   const router = useRouter();
   
-  const { addTransaction, updateTransaction, forceRefresh } = useTransactionStore();
+  const { addTransaction, updateTransaction} = useTransactionStore();
   const { categories, wallets, fetchMasterData } = useMasterDataStore();
   
   const getInitialDate = () => {
@@ -178,7 +178,7 @@ export default function TransactionForm({ initialData, isEdit }: Props) {
             <ArrowLeft size={18} className="mr-2"/> Kembali
           </Button>
         </div>
-        
+
         {hasErrors && (
           <div className="mb-6 p-4 bg-red-50 border border-red-100 rounded-xl flex items-start gap-3">
             <AlertCircle className="text-red-600 mt-0.5" size={20} />
